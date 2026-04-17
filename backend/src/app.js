@@ -9,7 +9,15 @@ const swaggerUi = require('swagger-ui-express');
 const app = express();
 
 // ── Core middleware ──────────────────────────────────────────────────────────
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://mpsedc-scheme-tracker.vercel.app',
+    'https://mpsedc-scheme-tracker-cg97bm74e-prathmick-3792s-projects.vercel.app',
+    /\.vercel\.app$/,
+  ],
+  credentials: true,
+}));
 app.use(express.json());
 
 // ── Swagger UI ───────────────────────────────────────────────────────────────
