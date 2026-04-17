@@ -1,0 +1,6 @@
+frontend/
+.git/
+.kiro/
+.vscode/
+*.md
+.gitignore

@@ -4,7 +4,8 @@
   "description": "MPSEDC Government Scheme Application Tracker",
   "private": true,
   "scripts": {
-    "start": "node backend/server.js",
+    "postinstall": "cd backend && npm install",
+    "start": "cd backend && npm start",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev"
   },
