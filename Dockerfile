@@ -23,4 +23,4 @@ RUN cd frontend && npm run build
 EXPOSE 5000
 
 # Start backend
-CMD ["npm", "start"]
+CMD ["sh", "-c", "cd backend && npm start"]
