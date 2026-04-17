@@ -12,92 +12,62 @@ if (!fs.existsSync(dataDir)) {
 
 const dbPath = path.join(dataDir, process.env.DB_NAME || 'mpsedc_tracker.db');
 
-// Create database connection
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('[DB] Connection error:', err.message);
-  }
-});
+// Single shared database connection
+const sqlite = new sqlite3.Database(dbPath);
+sqlite.run('PRAGMA foreign_keys = ON');
+sqlite.run('PRAGMA journal_mode = WAL');
 
-// Enable foreign keys
-db.run('PRAGMA foreign_keys = ON');
+// Promisified helpers
+const db = {
+  run(sql, params = []) {
+    return new Promise((resolve, reject) => {
+      sqlite.run(sql, params, function (err) {
+        if (err) return reject(err);
+        resolve({ lastInsertRowid: this.lastID, changes: this.changes });
+      });
+    });
+  },
 
-// Wrapper to provide synchronous-like interface
-const dbWrapper = {
-  prepare: (sql) => {
+  get(sql, params = []) {
+    return new Promise((resolve, reject) => {
+      sqlite.get(sql, params, (err, row) => {
+        if (err) return reject(err);
+        resolve(row);
+      });
+    });
+  },
+
+  all(sql, params = []) {
+    return new Promise((resolve, reject) => {
+      sqlite.all(sql, params, (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows || []);
+      });
+    });
+  },
+
+  exec(sql) {
+    return new Promise((resolve, reject) => {
+      sqlite.exec(sql, (err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+  },
+
+  // Compatibility shim: db.prepare(sql).run(...args) / .get(...args) / .all(...args)
+  prepare(sql) {
     return {
-      run: (...params) => {
-        return new Promise((resolve, reject) => {
-          db.run(sql, params, function(err) {
-            if (err) reject(err);
-            else resolve({ lastInsertRowid: this.lastID, changes: this.changes });
-          });
-        });
-      },
-      get: (...params) => {
-        return new Promise((resolve, reject) => {
-          db.get(sql, params, (err, row) => {
-            if (err) reject(err);
-            else resolve(row);
-          });
-        });
-      },
-      all: (...params) => {
-        return new Promise((resolve, reject) => {
-          db.all(sql, params, (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows || []);
-          });
-        });
-      }
+      run: (...args) => db.run(sql, args),
+      get: (...args) => db.get(sql, args),
+      all: (...args) => db.all(sql, args),
     };
   },
-  exec: (sql) => {
-    return new Promise((resolve, reject) => {
-      db.exec(sql, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-  },
-  run: (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.run(sql, params, function(err) {
-        if (err) reject(err);
-        else resolve({ lastInsertRowid: this.lastID, changes: this.changes });
-      });
-    });
-  },
-  get: (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-  },
-  all: (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
-  }
 };
 
-function testConnection() {
-  return new Promise((resolve, reject) => {
-    db.get('SELECT 1', (err) => {
-      if (err) {
-        console.error('[DB] Connection failed:', err.message);
-        reject(err);
-      } else {
-        console.log(`[DB] Connected to SQLite at ${dbPath}`);
-        resolve();
-      }
-    });
-  });
+async function testConnection() {
+  await db.get('SELECT 1');
+  console.log(`[DB] Connected to SQLite at ${dbPath}`);
 }
 
-module.exports = { db: dbWrapper, testConnection };
+module.exports = { db, testConnection };
