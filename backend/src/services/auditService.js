@@ -5,8 +5,8 @@ const { db } = require('../config/db');
 /**
  * Write an audit log entry.
  */
-function log({ userId, userEmail, role, action, resourceType, resourceId, details, ipAddress }) {
-  db.prepare(
+async function log({ userId, userEmail, role, action, resourceType, resourceId, details, ipAddress }) {
+  await db.prepare(
     `INSERT INTO audit_logs (userId, userEmail, role, action, resourceType, resourceId, details, ipAddress)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
@@ -24,7 +24,7 @@ function log({ userId, userEmail, role, action, resourceType, resourceId, detail
 /**
  * List audit logs with optional filters and pagination.
  */
-function listAuditLogs(filters = {}, pagination = {}) {
+async function listAuditLogs(filters = {}, pagination = {}) {
   const page = Math.max(1, parseInt(pagination.page) || 1);
   const limit = Math.max(1, parseInt(pagination.limit) || 20);
   const offset = (page - 1) * limit;
@@ -55,14 +55,15 @@ function listAuditLogs(filters = {}, pagination = {}) {
 
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
-  const countResult = db.prepare(
-    `SELECT COUNT(*) AS total FROM audit_logs ${where}`
-  ).get(...params);
+  const countResult = await db.get(
+    `SELECT COUNT(*) AS total FROM audit_logs ${where}`, params
+  );
   const total = countResult.total;
 
-  const rows = db.prepare(
-    `SELECT * FROM audit_logs ${where} ORDER BY createdAt DESC LIMIT ? OFFSET ?`
-  ).all(...params, limit, offset);
+  const rows = await db.all(
+    `SELECT * FROM audit_logs ${where} ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
 
   return {
     data: rows,
